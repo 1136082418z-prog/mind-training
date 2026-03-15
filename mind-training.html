@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日思维训练</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --paper: #fdfaf4;
+    --ink: #1a1612;
+    --ink-light: #6b6255;
+    --accent: #c4622d;
+    --accent-soft: #e8d5c4;
+    --line: #ddd5c5;
+    --success: #4a7c59;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Serif SC', serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1000; opacity: 0.5; }
+  header { padding: 2.5rem 2rem 1.5rem; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 1.5rem; background: var(--paper); }
+  .app-title { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.15em; }
+  .app-date { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--ink-light); }
+  .header-right { margin-left: auto; display: flex; gap: 0.75rem; }
+  .btn-sm { font-family: 'DM Mono', monospace; font-size: 0.7rem; padding: 0.4rem 0.9rem; border: 1px solid var(--line); background: transparent; color: var(--ink-light); cursor: pointer; border-radius: 2px; transition: all 0.2s; }
+  .btn-sm:hover, .btn-sm.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 80px); }
+  .sidebar { background: var(--paper); border-right: 1px solid var(--line); padding: 2rem 0; position: sticky; top: 0; height: calc(100vh - 80px); overflow-y: auto; }
+  .sidebar-label { font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.12em; color: var(--ink-light); padding: 0 1.5rem; margin-bottom: 0.75rem; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem; cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent; font-size: 0.85rem; color: var(--ink-light); }
+  .nav-item:hover { background: var(--accent-soft); color: var(--ink); }
+  .nav-item.active { border-left-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-num { font-family: 'DM Mono', monospace; font-size: 0.7rem; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-done { color: var(--success) !important; border-left-color: var(--success) !important; }
+  .nav-done .nav-num { background: var(--success); color: white; border-color: var(--success); }
+  .sidebar-divider { height: 1px; background: var(--line); margin: 1.5rem; }
+  .streak-box { margin: 0 1.5rem; padding: 1rem; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+  .streak-num { font-family: 'DM Mono', monospace; font-size: 2rem; color: var(--accent); line-height: 1; }
+  .streak-label { font-size: 0.7rem; color: var(--ink-light); margin-top: 0.25rem; }
+  .main { padding: 3rem 4rem; max-width: 760px; }
+  .module { display: none; animation: fadeIn 0.3s ease; }
+  .module.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .module-header { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid var(--line); }
+  .module-num-big { font-family: 'DM Mono', monospace; font-size: 3.5rem; font-weight: 300; color: var(--line); line-height: 1; flex-shrink: 0; }
+  .module-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .module-meta { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--ink-light); }
+  .timer-block { background: var(--ink); color: var(--paper); padding: 2rem; margin-bottom: 2.5rem; border-radius: 4px; display: flex; align-items: center; gap: 2rem; }
+  .timer-display { font-family: 'DM Mono', monospace; font-size: 3rem; font-weight: 300; letter-spacing: 0.05em; line-height: 1; min-width: 140px; }
+  .timer-display.running { color: #ffd280; }
+  .timer-display.done { color: #80ffb4; }
+  .timer-controls { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn-timer { font-family: 'DM Mono', monospace; font-size: 0.75rem; padding: 0.5rem 1.2rem; border: 1px solid rgba(255,255,255,0.3); background: transparent; color: var(--paper); cursor: pointer; border-radius: 2px; transition: all 0.2s; }
+  .btn-timer.start { background: var(--accent); border-color: var(--accent); }
+  .timer-progress { flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; align-self: center; }
+  .timer-progress-bar { height: 100%; background: var(--accent); transition: width 1s linear; border-radius: 2px; }
+  .steps { margin-bottom: 2.5rem; }
+  .steps-title { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 1rem; }
+  .step { display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.9rem; line-height: 1.6; }
+  .step-n { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--accent); flex-shrink: 0; padding-top: 0.2rem; }
+  .rule-block { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; margin-bottom: 2.5rem; border-radius: 0 4px 4px 0; }
+  .rule-block p { font-size: 0.875rem; line-height: 1.8; }
+  .rule-block p + p { margin-top: 0.4rem; }
+  .record-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+  .record-title { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 1.5rem; }
+  .field { margin-bottom: 1.5rem; }
+  .field label { display: block; font-size: 0.8rem; color: var(--ink-light); margin-bottom: 0.5rem; font-family: 'DM Mono', monospace; }
+  .field input, .field textarea { width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; padding: 0.75rem 1rem; font-family: 'Noto Serif SC', serif; font-size: 0.9rem; color: var(--ink); outline: none; transition: border-color 0.2s; resize: vertical; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .counter-field { display: flex; align-items: center; gap: 1rem; }
+  .counter-btn { width: 36px; height: 36px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 3px; transition: all 0.15s; flex-shrink: 0; }
+  .counter-num { font-family: 'DM Mono', monospace; font-size: 1.8rem; min-width: 50px; text-align: center; color: var(--accent); }
+  .dot-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.5rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); opacity: 0.7; }
+  .btn-submit { font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.08em; padding: 0.85rem 2rem; background: var(--accent); color: white; border: none; border-radius: 3px; cursor: pointer; transition: all 0.2s; margin-top: 1rem; }
+  .btn-submit:hover { background: #d4703a; }
+  .summary-thought { background: var(--ink); color: var(--paper); padding: 2.5rem; border-radius: 4px; margin-bottom: 2rem; }
+  .summary-thought textarea { width: 100%; background: transparent; border: none; outline: none; font-family: 'Noto Serif SC', serif; font-size: 1.1rem; color: var(--paper); resize: none; line-height: 1.8; }
+  .summary-thought textarea::placeholder { color: rgba(255,255,255,0.3); }
+  .progress-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+  .prog-item { padding: 1rem; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; text-align: center; }
+  .prog-item.done { border-color: var(--success); background: #f0f7f2; }
+  .prog-icon { font-size: 1.2rem; margin-bottom: 0.4rem; }
+  .prog-name { font-size: 0.72rem; color: var(--ink-light); }
+  .history-view { display: none; }
+  .history-view.active { display: block; }
+  .history-entry { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 1.5rem; margin-bottom: 1rem; transition: all 0.15s; }
+  .history-entry:hover { border-color: var(--accent); }
+  .history-date { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--ink-light); margin-bottom: 0.75rem; }
+  .history-modules { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .history-tag { font-family: 'DM Mono', monospace; font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 2px; background: var(--accent-soft); color: var(--accent); }
+  .history-thought { font-size: 0.875rem; color: var(--ink-light); font-style: italic; }
+  .empty-history { text-align: center; padding: 4rem 2rem; color: var(--ink-light); font-size: 0.9rem; }
+  .empty-history .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+  .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--ink); color: var(--paper); padding: 1rem 1.5rem; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 0.8rem; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 999; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 1rem 0; } .main { padding: 2rem 1.5rem; } .progress-overview { grid-template-columns: repeat(2, 1fr); } header { padding: 1.5rem 1rem; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="app-title">每日思维训练</span>
+  <span class="app-date" id="headerDate"></span>
+  <div class="header-right">
+    <button class="btn-sm active" id="btnToday" onclick="showToday()">今日训练</button>
+    <button class="btn-sm" id="btnHistory" onclick="showHistory()">历史记录</button>
+  </div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-label">训练模块</div>
+    <div class="nav-item active" id="nav-1" onclick="switchModule(1)"><span class="nav-num">1</span> 专注力训练</div>
+    <div class="nav-item" id="nav-2" onclick="switchModule(2)"><span class="nav-num">2</span> 结构化思维</div>
+    <div class="nav-item" id="nav-3" onclick="switchModule(3)"><span class="nav-num">3</span> 思维清理</div>
+    <div class="nav-item" id="nav-4" onclick="switchModule(4)"><span class="nav-num">4</span> 深度思考</div>
+    <div class="nav-item" id="nav-5" onclick="switchModule(5)"><span class="nav-num">∑</span> 每日总结</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-label">连续打卡</div>
+    <div class="streak-box">
+      <div class="streak-num" id="streakNum">0</div>
+      <div class="streak-label">天</div>
+    </div>
+  </aside>
+  <main class="main">
+    <div id="todayView">
+      <div class="module active" id="module-1">
+        <div class="module-header"><div class="module-num-big">01</div><div><div class="module-title">专注力训练</div><div class="module-meta">10分钟 · 连续阅读</div></div></div>
+        <div class="timer-block">
+          <div class="timer-display" id="timer1">10:00</div>
+          <div style="flex:1"><div class="timer-progress"><div class="timer-progress-bar" id="progress1" style="width:100%"></div></div></div>
+          <div class="timer-controls"><button class="btn-timer start" onclick="startTimer(1,600)">开始</button><button class="btn-timer" onclick="resetTimer(1,600)">重置</button></div>
+        </div>
+        <div class="steps"><div class="steps-title">步骤</div><div class="step"><span class="step-n">01</span><span>选择一段文章或书</span></div><div class="step"><span class="step-n">02</span><span>设置10分钟计时，开始连续阅读</span></div><div class="step"><span class="step-n">03</span><span>每次走神 → 点击「记录走神」</span></div></div>
+        <div class="rule-block"><p>· 不责怪自己，走神了就记录，继续读</p><p>· 目标是逐渐减少走神次数</p></div>
+        <div class="record-section">
+          <div class="record-title">打卡记录</div>
+          <div class="field"><label>阅读内容</label><input type="text" id="f1-content" placeholder="书名 / 文章名称"></div>
+          <div class="field"><label>走神次数</label><div class="counter-field"><button class="counter-btn" onclick="changeCount('f1-count',-1)">−</button><div class="counter-num" id="f1-count">0</div><button class="counter-btn" onclick="changeCount('f1-count',1)">+</button><button class="btn-sm" onclick="changeCount('f1-count',1)" style="margin-left:0.5rem">记录走神 •</button></div><div class="dot-row" id="f1-dots"></div></div>
+          <button class="btn-submit" onclick="saveModule(1)">完成第一项 →</button>
+        </div>
+      </div>
+      <div class="module" id="module-2">
+        <div class="module-header"><div class="module-num-big">02</div><div><div class="module-title">结构化思维训练</div><div class="module-meta">10分钟 · 拆解一个问题</div></div></div>
+        <div class="timer-block">
+          <div class="timer-display" id="timer2">10:00</div>
+          <div style="flex:1"><div class="timer-progress"><div class="timer-progress-bar" id="progress2" style="width:100%"></div></div></div>
+          <div class="timer-controls"><button class="btn-timer start" onclick="startTimer(2,600)">开始</button><button class="btn-timer" onclick="resetTimer(2,600)">重置</button></div>
+        </div>
+        <div class="steps"><div class="steps-title">步骤</div><div class="step"><span class="step-n">01</span><span>写下一个你正在思考的问题</span></div><div class="step"><span class="step-n">02</span><span>用三层结构拆解：原因层 → 解释层 → 例子层</span></div></div>
+        <div class="record-section">
+          <div class="record-title">打卡记录</div>
+          <div class="field"><label>今日问题</label><input type="text" id="f2-question" placeholder="你想拆解的问题是什么？"></div>
+          <div class="field"><label>原因层（3个原因）</label><textarea id="f2-causes" rows="4" placeholder="1. &#10;2. &#10;3. "></textarea></div>
+          <div class="field"><label>解释层</label><textarea id="f2-explain" rows="4" placeholder="原因1 → &#10;原因2 → &#10;原因3 → "></textarea></div>
+          <div class="field"><label>例子层（可选）</label><textarea id="f2-example" rows="3" placeholder="举一个具体的例子..."></textarea></div>
+          <button class="btn-submit" onclick="saveModule(2)">完成第二项 →</button>
+        </div>
+      </div>
+      <div class="module" id="module-3">
+        <div class="module-header"><div class="module-num-big">03</div><div><div class="module-title">思维清理</div><div class="module-meta">10分钟 · 自由写作</div></div></div>
+        <div class="timer-block">
+          <div class="timer-display" id="timer3">10:00</div>
+          <div style="flex:1"><div class="timer-progress"><div class="timer-progress-bar" id="progress3" style="width:100%"></div></div></div>
+          <div class="timer-controls"><button class="btn-timer start" onclick="startTimer(3,600)">开始</button><button class="btn-timer" onclick="resetTimer(3,600)">重置</button></div>
+        </div>
+        <div class="rule-block"><p>· 不整理 · 不修改 · 不评价</p><p>· 写下脑子里任何想法：今天发生的事、情绪、疑问、突然想到的...</p></div>
+        <div class="record-section">
+          <div class="record-title">自由写作区</div>
+          <div class="field"><textarea id="f3-freewrite" rows="10" placeholder="开始写吧，想到什么写什么..."></textarea></div>
+          <div class="field"><label>今日关键词（3个）</label><div style="display:flex;gap:0.75rem"><input type="text" id="f3-kw1" placeholder="关键词1" style="flex:1"><input type="text" id="f3-kw2" placeholder="关键词2" style="flex:1"><input type="text" id="f3-kw3" placeholder="关键词3" style="flex:1"></div></div>
+          <button class="btn-submit" onclick="saveModule(3)">完成第三项 →</button>
+        </div>
+      </div>
+      <div class="module" id="module-4">
+        <div class="module-header"><div class="module-num-big">04</div><div><div class="module-title">深度问题思考</div><div class="module-meta">5–10分钟 · 一个观点+一个理由</div></div></div>
+        <div class="timer-block">
+          <div class="timer-display" id="timer4">07:00</div>
+          <div style="flex:1"><div class="timer-progress"><div class="timer-progress-bar" id="progress4" style="width:100%"></div></div></div>
+          <div class="timer-controls"><button class="btn-timer start" onclick="startTimer(4,420)">开始</button><button class="btn-timer" onclick="resetTimer(4,420)">重置</button></div>
+        </div>
+        <div class="steps"><div class="steps-title">步骤</div><div class="step"><span class="step-n">01</span><span>选一个你感兴趣的问题</span></div><div class="step"><span class="step-n">02</span><span>写一个你的观点</span></div><div class="step"><span class="step-n">03</span><span>写一个支撑观点的理由</span></div></div>
+        <div class="record-section">
+          <div class="record-title">打卡记录</div>
+          <div class="field"><label>今日问题</label><input type="text" id="f4-question" placeholder="什么是好的生活？/ 为什么人会拖延？..."></div>
+          <div class="field"><label>我的观点</label><textarea id="f4-view" rows="3" placeholder="好的生活是可持续的生活..."></textarea></div>
+          <div class="field"><label>支撑理由</label><textarea id="f4-reason" rows="3" placeholder="因为..."></textarea></div>
+          <button class="btn-submit" onclick="saveModule(4)">完成第四项 →</button>
+        </div>
+      </div>
+      <div class="module" id="module-5">
+        <div class="module-header"><div class="module-num-big">∑</div><div><div class="module-title">每日总结</div><div class="module-meta">1分钟 · 一句话收尾</div></div></div>
+        <div class="progress-overview">
+          <div class="prog-item" id="prog-1"><div class="prog-icon">🎯</div><div class="prog-name">专注力</div></div>
+          <div class="prog-item" id="prog-2"><div class="prog-icon">🧩</div><div class="prog-name">结构化思维</div></div>
+          <div class="prog-item" id="prog-3"><div class="prog-icon">🌊</div><div class="prog-name">思维清理</div></div>
+          <div class="prog-item" id="prog-4"><div class="prog-icon">💡</div><div class="prog-name">深度思考</div></div>
+        </div>
+        <div class="summary-thought">
+          <div style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;opacity:0.4;margin-bottom:1rem;text-transform:uppercase">今天最有意思的一个想法</div>
+          <textarea id="f5-thought" rows="4" placeholder="写下今天最触动你的一个想法..."></textarea>
+        </div>
+        <button class="btn-submit" onclick="saveDay()" style="width:100%;padding:1.1rem;font-size:0.9rem">完成今日训练 ✓</button>
+      </div>
+    </div>
+    <div id="historyView" class="history-view">
+      <div style="margin-bottom:2rem"><h2 style="font-size:1.3rem;font-weight:600;margin-bottom:0.5rem">历史记录</h2><div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ink-light)">你的每一天都被记录在这里</div></div>
+      <div id="historyList"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const state = { currentModule:1, timers:{}, completed:new Set(), todayKey:new Date().toISOString().split('T')[0] };
+document.addEventListener('DOMContentLoaded',()=>{ updateDate(); loadTodayProgress(); updateStreak(); });
+function updateDate(){ const d=new Date(); const days=['日','一','二','三','四','五','六']; document.getElementById('headerDate').textContent=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} 周${days[d.getDay()]}`; }
+function switchModule(n){ document.querySelectorAll('.module').forEach(m=>m.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active')); document.getElementById('module-'+n).classList.add('active'); document.getElementById('nav-'+n).classList.add('active'); state.currentModule=n; }
+function showToday(){ document.getElementById('todayView').style.display=''; document.getElementById('historyView').classList.remove('active'); document.getElementById('btnToday').classList.add('active'); document.getElementById('btnHistory').classList.remove('active'); }
+function showHistory(){ document.getElementById('todayView').style.display='none'; document.getElementById('historyView').classList.add('active'); document.getElementById('btnHistory').classList.add('active'); document.getElementById('btnToday').classList.remove('active'); renderHistory(); }
+function formatTime(s){ return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function startTimer(id,total){ if(state.timers[id])return; const display=document.getElementById('timer'+id); const bar=document.getElementById('progress'+id); let current=parseInt(display.textContent.split(':').reduce((a,b)=>a*60+parseInt(b))); display.classList.add('running'); state.timers[id]=setInterval(()=>{ current--; if(current<=0){ current=0; clearInterval(state.timers[id]); delete state.timers[id]; display.classList.remove('running'); display.classList.add('done'); showToast('计时结束！'); } display.textContent=formatTime(current); bar.style.width=(current/total*100)+'%'; },1000); }
+function resetTimer(id,total){ if(state.timers[id]){ clearInterval(state.timers[id]); delete state.timers[id]; } const display=document.getElementById('timer'+id); display.textContent=formatTime(total); display.classList.remove('running','done'); document.getElementById('progress'+id).style.width='100%'; }
+function changeCount(elId,delta){ const el=document.getElementById(elId); const val=Math.max(0,parseInt(el.textContent)+delta); el.textContent=val; const dotsEl=document.getElementById(elId.replace('count','dots')); if(dotsEl){ dotsEl.innerHTML=Array(val).fill('<div class="dot"></div>').join(''); } }
+function saveModule(n){ state.completed.add(n); document.getElementById('nav-'+n).classList.add('nav-done'); const prog=document.getElementById('prog-'+n); if(prog)prog.classList.add('done'); const key='mindtrain_draft_'+state.todayKey; const draft=JSON.parse(localStorage.getItem(key)||'{}'); draft['module'+n]=gatherModuleData(n); localStorage.setItem(key,JSON.stringify(draft)); showToast('✓ 已保存'); switchModule(n<5?n+1:5); }
+function gatherModuleData(n){ if(n===1)return{content:document.getElementById('f1-content').value,distractions:parseInt(document.getElementById('f1-count').textContent)}; if(n===2)return{question:document.getElementById('f2-question').value,causes:document.getElementById('f2-causes').value,explain:document.getElementById('f2-explain').value,example:document.getElementById('f2-example').value}; if(n===3)return{freewrite:document.getElementById('f3-freewrite').value,keywords:[document.getElementById('f3-kw1').value,document.getElementById('f3-kw2').value,document.getElementById('f3-kw3').value]}; if(n===4)return{question:document.getElementById('f4-question').value,view:document.getElementById('f4-view').value,reason:document.getElementById('f4-reason').value}; }
+function saveDay(){ const thought=document.getElementById('f5-thought').value; const draft=JSON.parse(localStorage.getItem('mindtrain_draft_'+state.todayKey)||'{}'); draft.thought=thought; draft.date=state.todayKey; draft.completed=[...state.completed]; const history=JSON.parse(localStorage.getItem('mindtrain_history')||'[]'); const existing=history.findIndex(h=>h.date===state.todayKey); if(existing>=0)history[existing]=draft; else history.unshift(draft); localStorage.setItem('mindtrain_history',JSON.stringify(history)); localStorage.removeItem('mindtrain_draft_'+state.todayKey); updateStreak(); showToast('🎉 今日训练完成！'); }
+function loadTodayProgress(){ const draft=JSON.parse(localStorage.getItem('mindtrain_draft_'+state.todayKey)||'{}'); for(let n=1;n<=4;n++){ if(draft['module'+n]){ state.completed.add(n); document.getElementById('nav-'+n).classList.add('nav-done'); const prog=document.getElementById('prog-'+n); if(prog)prog.classList.add('done'); } } }
+function updateStreak(){ const history=JSON.parse(localStorage.getItem('mindtrain_history')||'[]'); let streak=0; const today=new Date(); for(let i=0;i<365;i++){ const d=new Date(today); d.setDate(d.getDate()-i); const key=d.toISOString().split('T')[0]; if(history.find(h=>h.date===key))streak++; else break; } document.getElementById('streakNum').textContent=streak; }
+function renderHistory(){ const history=JSON.parse(localStorage.getItem('mindtrain_history')||'[]'); const container=document.getElementById('historyList'); if(!history.length){ container.innerHTML='<div class="empty-history"><div class="icon">📖</div><div>还没有记录，完成今日训练后会出现在这里</div></div>'; return; } const moduleNames={1:'专注力',2:'结构化思维',3:'思维清理',4:'深度思考'}; container.innerHTML=history.map(entry=>`<div class="history-entry"><div class="history-date">${entry.date}</div><div class="history-modules">${(entry.completed||[]).filter(n=>n<5).map(n=>`<span class="history-tag">${moduleNames[n]}</span>`).join('')}</div>${entry.thought?`<div class="history-thought">"${entry.thought}"</div>`:''}</div>`).join(''); }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+</script>
+</body>
+</html>
