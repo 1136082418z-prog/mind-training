@@ -1070,7 +1070,11 @@ function updateStreak() {
   const history = JSON.parse(localStorage.getItem('mindtrain_history') || '[]');
   let streak = 0;
   const today = new Date();
-  for (let i = 0; i < 365; i++) {
+  const todayKey = today.toISOString().split('T')[0];
+  const todayDone = history.find(h => h.date === todayKey);
+  // 如果今天已完成从今天开始数，否则从昨天开始数
+  const startOffset = todayDone ? 0 : 1;
+  for (let i = startOffset; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     const key = d.toISOString().split('T')[0];
