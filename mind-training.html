@@ -556,6 +556,26 @@
   .template-btn:hover { border-color: var(--accent); color: var(--accent); }
   .template-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+  /* ── HISTORY TABS ── */
+  .history-tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink-light);
+    cursor: pointer;
+    border-radius: 20px;
+    transition: all 0.2s;
+  }
+  .history-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .history-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* ── HISTORY DETAIL ── */
+  .history-field { margin-bottom:0.75rem; }
+  .history-field-label { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--ink-light); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.25rem; }
+  .history-field-value { font-size:0.875rem; color:var(--ink); line-height:1.7; white-space:pre-wrap; }
+
   /* ── TOAST ── */
   .toast {
     position: fixed;
@@ -860,9 +880,16 @@
 
     <!-- History view -->
     <div id="historyView" class="history-view">
-      <div style="margin-bottom:2rem">
+      <div style="margin-bottom:1.5rem">
         <h2 style="font-size:1.3rem;font-weight:600;margin-bottom:0.5rem">历史记录</h2>
         <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ink-light)">你的每一天都被记录在这里</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:2rem;border-bottom:1px solid var(--line);padding-bottom:1rem">
+        <button class="history-tab active" onclick="switchHistoryTab(1)">🎯 专注力</button>
+        <button class="history-tab" onclick="switchHistoryTab(2)">🧩 结构化思维</button>
+        <button class="history-tab" onclick="switchHistoryTab(3)">🌊 思维清理</button>
+        <button class="history-tab" onclick="switchHistoryTab(4)">💡 深度思考</button>
+        <button class="history-tab" onclick="switchHistoryTab(5)">∑ 每日总结</button>
       </div>
       <div id="historyList"></div>
     </div>
@@ -931,14 +958,6 @@ function showToday() {
   document.getElementById('historyView').classList.remove('active');
   document.getElementById('btnToday').classList.add('active');
   document.getElementById('btnHistory').classList.remove('active');
-}
-
-function showHistory() {
-  document.getElementById('todayView').style.display = 'none';
-  document.getElementById('historyView').classList.add('active');
-  document.getElementById('btnHistory').classList.add('active');
-  document.getElementById('btnToday').classList.remove('active');
-  renderHistory();
 }
 
 // ── TIMER ──
@@ -1085,27 +1104,82 @@ function updateStreak() {
 }
 
 // ── HISTORY ──
+let currentHistoryTab = 1;
+
+function switchHistoryTab(n) {
+  currentHistoryTab = n;
+  document.querySelectorAll('.history-tab').forEach((b, i) => b.classList.toggle('active', i === n-1));
+  renderHistory();
+}
+
+function showHistory() {
+  document.getElementById('todayView').style.display = 'none';
+  document.getElementById('historyView').classList.add('active');
+  document.getElementById('btnHistory').classList.add('active');
+  document.getElementById('btnToday').classList.remove('active');
+  renderHistory();
+}
+
 function renderHistory() {
   const history = JSON.parse(localStorage.getItem('mindtrain_history') || '[]');
   const container = document.getElementById('historyList');
+  const n = currentHistoryTab;
 
   if (!history.length) {
     container.innerHTML = `<div class="empty-history"><div class="icon">📖</div><div>还没有记录，完成今日训练后会出现在这里</div></div>`;
     return;
   }
 
-  const moduleNames = {1:'专注力', 2:'结构化思维', 3:'思维清理', 4:'深度思考'};
-  container.innerHTML = history.map(entry => `
-    <div class="history-entry">
-      <div class="history-date">${entry.date}</div>
-      <div class="history-modules">
-        ${(entry.completed||[]).filter(n=>n<5).map(n =>
-          `<span class="history-tag">${moduleNames[n]}</span>`
-        ).join('')}
+  const relevant = history.filter(e => n === 5 ? e.thought : e['module'+n]);
+  if (!relevant.length) {
+    container.innerHTML = `<div class="empty-history"><div class="icon">📖</div><div>这个模块还没有记录</div></div>`;
+    return;
+  }
+
+  container.innerHTML = relevant.map(entry => {
+    let content = '';
+    if (n === 1) {
+      const m = entry.module1;
+      content = `
+        <div class="history-field"><div class="history-field-label">阅读内容</div><div class="history-field-value">${m.content || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">走神次数</div><div class="history-field-value">${m.distractions} 次</div></div>
+      `;
+    } else if (n === 2) {
+      const m = entry.module2;
+      content = `
+        <div class="history-field"><div class="history-field-label">框架</div><div class="history-field-value">${m.template || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">问题</div><div class="history-field-value">${m.question || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">第一层</div><div class="history-field-value">${m.layer1 || m.causes || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">第二层</div><div class="history-field-value">${m.layer2 || m.explain || '—'}</div></div>
+        ${(m.layer3 || m.example) ? `<div class="history-field"><div class="history-field-label">第三层</div><div class="history-field-value">${m.layer3 || m.example}</div></div>` : ''}
+      `;
+    } else if (n === 3) {
+      const m = entry.module3;
+      content = `
+        <div class="history-field"><div class="history-field-label">自由写作</div><div class="history-field-value">${m.freewrite || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">关键词</div><div class="history-field-value">${(m.keywords||[]).filter(Boolean).join(' / ') || '—'}</div></div>
+      `;
+    } else if (n === 4) {
+      const m = entry.module4;
+      content = `
+        <div class="history-field"><div class="history-field-label">问题</div><div class="history-field-value">${m.question || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">观点</div><div class="history-field-value">${m.view || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">理由</div><div class="history-field-value">${m.reason || '—'}</div></div>
+      `;
+    } else if (n === 5) {
+      content = `
+        <div class="history-field"><div class="history-field-label">今天最有意思的想法</div><div class="history-field-value">${entry.thought || '—'}</div></div>
+        <div class="history-field"><div class="history-field-label">完成模块</div><div class="history-field-value">${(entry.completed||[]).filter(x=>x<5).map(x=>['专注力','结构化思维','思维清理','深度思考'][x-1]).join(' · ') || '—'}</div></div>
+      `;
+    }
+
+    return `
+      <div class="history-entry">
+        <div class="history-date">${entry.date}</div>
+        ${content}
       </div>
-      ${entry.thought ? `<div class="history-thought">"${entry.thought}"</div>` : ''}
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 // ── TOAST ──
