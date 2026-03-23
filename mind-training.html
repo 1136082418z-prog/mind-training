@@ -556,6 +556,48 @@
   .template-btn:hover { border-color: var(--accent); color: var(--accent); }
   .template-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+  /* ── MODULE SUMMARY BOX ── */
+  .module-summary-box {
+    margin-top: 1.25rem;
+    background: var(--bg);
+    border: 1px dashed var(--line);
+    border-radius: 4px;
+    padding: 1rem;
+  }
+  .summary-box-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--ink-light);
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  .module-summary-box .summary-text {
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.75rem;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 0.85rem;
+    color: var(--ink);
+    line-height: 1.8;
+    resize: none;
+    outline: none;
+  }
+  .btn-copy {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink-light);
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    transition: all 0.2s;
+  }
+  .btn-copy:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
   /* ── HISTORY TABS ── */
   .history-tab {
     font-family: 'DM Mono', monospace;
@@ -697,6 +739,11 @@
             <div class="dot-row" id="f1-dots"></div>
           </div>
           <button class="btn-submit" onclick="saveModule(1)">完成第一项 →</button>
+          <div id="summary-box-1" class="module-summary-box" style="display:none">
+            <div class="summary-box-label">📋 文字记录 <span style="font-size:0.65rem;opacity:0.6">可复制给 AI</span></div>
+            <textarea class="summary-text" rows="4" readonly></textarea>
+            <button class="btn-copy" onclick="copyModuleSummary(1)">复制</button>
+          </div>
         </div>
       </div>
 
@@ -757,6 +804,11 @@
             <textarea id="f2-layer3" rows="3" placeholder=""></textarea>
           </div>
           <button class="btn-submit" onclick="saveModule(2)">完成第二项 →</button>
+          <div id="summary-box-2" class="module-summary-box" style="display:none">
+            <div class="summary-box-label">📋 文字记录 <span style="font-size:0.65rem;opacity:0.6">可复制给 AI</span></div>
+            <textarea class="summary-text" rows="5" readonly></textarea>
+            <button class="btn-copy" onclick="copyModuleSummary(2)">复制</button>
+          </div>
         </div>
       </div>
 
@@ -800,6 +852,11 @@
             </div>
           </div>
           <button class="btn-submit" onclick="saveModule(3)">完成第三项 →</button>
+          <div id="summary-box-3" class="module-summary-box" style="display:none">
+            <div class="summary-box-label">📋 文字记录 <span style="font-size:0.65rem;opacity:0.6">可复制给 AI</span></div>
+            <textarea class="summary-text" rows="6" readonly></textarea>
+            <button class="btn-copy" onclick="copyModuleSummary(3)">复制</button>
+          </div>
         </div>
       </div>
 
@@ -846,6 +903,11 @@
             <textarea id="f4-reason" rows="3" placeholder="因为..."></textarea>
           </div>
           <button class="btn-submit" onclick="saveModule(4)">完成第四项 →</button>
+          <div id="summary-box-4" class="module-summary-box" style="display:none">
+            <div class="summary-box-label">📋 文字记录 <span style="font-size:0.65rem;opacity:0.6">可复制给 AI</span></div>
+            <textarea class="summary-text" rows="4" readonly></textarea>
+            <button class="btn-copy" onclick="copyModuleSummary(4)">复制</button>
+          </div>
         </div>
       </div>
 
@@ -1003,9 +1065,14 @@ async function getAIReview() {
         model: 'anthropic/claude-3-5-haiku',
         messages: [{
           role: 'user',
-          content: `你是一位温暖且有洞察力的思维教练。请根据以下今日训练内容，给出一段详细的点评和反馈。重点关注：思维的深度和清晰度、有什么值得继续深化的地方、有什么可以改进的方向。用鼓励但真诚的语气，一段话即可。\n\n${summary}`
+          content: `你是一位严格但温暖的思维教练。请根据以下今日训练内容，给出具体的改进建议。要求：
+1. 针对用户写的具体内容，指出哪里可以更深入、更清晰、或更有逻辑
+2. 对其中1-2个关键段落，直接给出改写示例（用"原文："和"改写："的格式）
+3. 最后一句话总结今天思维训练的亮点
+
+语气真诚直接，不要泛泛而谈，要落到具体的文字上。\n\n${summary}`
         }],
-        max_tokens: 500
+        max_tokens: 800
       })
     });
 
@@ -1150,8 +1217,36 @@ async function saveModule(n) {
     data: gatherModuleData(n)
   });
 
+  // 显示文字摘要
+  showModuleSummary(n, draft['module'+n]);
+
   showToast('✓ 已保存');
   switchModule(n < 5 ? n+1 : 5);
+}
+
+function formatModuleText(n, d) {
+  if (n===1) return `【专注力训练】\n阅读内容：${d.content || '—'}\n走神次数：${d.distractions} 次`;
+  if (n===2) return `【结构化思维 · ${d.template || ''}】\n问题：${d.question || '—'}\n${d.layer1 || ''}\n${d.layer2 || ''}${d.layer3 ? '\n'+d.layer3 : ''}`;
+  if (n===3) return `【思维清理】\n${d.freewrite || '—'}\n关键词：${(d.keywords||[]).filter(Boolean).join(' / ')}`;
+  if (n===4) return `【深度思考】\n问题：${d.question || '—'}\n观点：${d.view || '—'}\n理由：${d.reason || '—'}`;
+}
+
+function showModuleSummary(n, data) {
+  const boxId = 'summary-box-'+n;
+  let box = document.getElementById(boxId);
+  if (!box) return;
+  const text = formatModuleText(n, data);
+  box.style.display = 'block';
+  box.querySelector('.summary-text').value = text;
+}
+
+function copyModuleSummary(n) {
+  const box = document.getElementById('summary-box-'+n);
+  if (!box) return;
+  const ta = box.querySelector('.summary-text');
+  ta.select();
+  document.execCommand('copy');
+  showToast('✓ 已复制');
 }
 
 function gatherModuleData(n) {
