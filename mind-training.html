@@ -874,6 +874,16 @@
         <button class="btn-submit" onclick="saveDay()" style="width:100%;padding:1.1rem;font-size:0.9rem">
           完成今日训练 ✓
         </button>
+
+        <div style="margin-top:1.5rem">
+          <button class="btn-submit" onclick="getAIReview()" id="btnAI" style="width:100%;padding:1.1rem;font-size:0.9rem;background:var(--ink)">
+            ✦ 获取 AI 点评
+          </button>
+          <div id="aiReviewBox" style="display:none;margin-top:1.5rem;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1.5rem">
+            <div style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;color:var(--ink-light);margin-bottom:1rem;text-transform:uppercase">AI 点评</div>
+            <div id="aiReviewText" style="font-size:0.9rem;line-height:1.9;color:var(--ink)"></div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /todayView -->
@@ -900,6 +910,116 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── CONFIG ──
+const SUPABASE_URL = 'https://kusrifubzepzwfmizpsl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1c3JpZnViemVwendmbWl6cHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzA3MjEsImV4cCI6MjA4OTgwNjcyMX0.4W_Zm_R1gzOvcn24vwCIzFoDdC_UijlSGeqfRKV0lXM';
+const OPENROUTER_KEY = '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';
+
+// 获取或生成用户ID
+function getUserId() {
+  let uid = localStorage.getItem('mindtrain_uid');
+  if (!uid) {
+    uid = 'user_' + Math.random().toString(36).substr(2, 12);
+    localStorage.setItem('mindtrain_uid', uid);
+  }
+  return uid;
+}
+
+// ── SUPABASE API ──
+async function dbSave(table, data) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { return false; }
+}
+
+async function dbLoad(table, userId) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?user_id=eq.${userId}&order=date.desc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (res.ok) return await res.json();
+    return [];
+  } catch(e) { return []; }
+}
+
+// ── AI 点评 ──
+async function getAIReview() {
+  const btn = document.getElementById('btnAI');
+  const box = document.getElementById('aiReviewBox');
+  const text = document.getElementById('aiReviewText');
+
+  btn.textContent = '正在思考...';
+  btn.disabled = true;
+  box.style.display = 'block';
+  text.textContent = '';
+
+  // 收集今天所有模块的内容
+  const draft = JSON.parse(localStorage.getItem('mindtrain_draft_' + state.todayKey) || '{}');
+  const history = JSON.parse(localStorage.getItem('mindtrain_history') || '[]');
+  const todayEntry = history.find(h => h.date === state.todayKey) || draft;
+
+  let summary = `今天是 ${state.todayKey}，用户完成了每日思维训练，以下是今天的训练内容：\n\n`;
+
+  if (todayEntry.module1) {
+    summary += `【专注力训练】\n阅读内容：${todayEntry.module1.content || '未填写'}\n走神次数：${todayEntry.module1.distractions} 次\n\n`;
+  }
+  if (todayEntry.module2) {
+    const m = todayEntry.module2;
+    summary += `【结构化思维】\n使用框架：${m.template || '未知'}\n问题：${m.question || '未填写'}\n第一层：${m.layer1 || '未填写'}\n第二层：${m.layer2 || '未填写'}\n第三层：${m.layer3 || '未填写'}\n\n`;
+  }
+  if (todayEntry.module3) {
+    const m = todayEntry.module3;
+    summary += `【思维清理】\n自由写作：${m.freewrite || '未填写'}\n关键词：${(m.keywords||[]).join(' / ')}\n\n`;
+  }
+  if (todayEntry.module4) {
+    const m = todayEntry.module4;
+    summary += `【深度思考】\n问题：${m.question || '未填写'}\n观点：${m.view || '未填写'}\n理由：${m.reason || '未填写'}\n\n`;
+  }
+  if (todayEntry.thought) {
+    summary += `【每日总结】\n今天最有意思的想法：${todayEntry.thought}\n`;
+  }
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-3-5-haiku',
+        messages: [{
+          role: 'user',
+          content: `你是一位温暖且有洞察力的思维教练。请根据以下今日训练内容，给出一段详细的点评和反馈。重点关注：思维的深度和清晰度、有什么值得继续深化的地方、有什么可以改进的方向。用鼓励但真诚的语气，一段话即可。\n\n${summary}`
+        }],
+        max_tokens: 500
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || '暂时无法获取点评，请稍后再试。';
+    text.textContent = reply;
+  } catch(e) {
+    text.textContent = '网络错误，请检查网络连接后再试。';
+  }
+
+  btn.textContent = '✦ 重新点评';
+  btn.disabled = false;
+}
+
 // ── TEMPLATES ──
 const templates = [
   { name: '原因 · 解释 · 例子', layers: ['原因层（列出 3 个原因）', '解释层（每个原因背后的逻辑）', '例子层（可选）'], placeholders: ['1. \n2. \n3. ', '原因1 → \n原因2 → \n原因3 → ', '举一个具体的例子...'] },
@@ -1008,20 +1128,27 @@ function changeCount(elId, delta) {
 }
 
 // ── SAVE MODULE ──
-function saveModule(n) {
+async function saveModule(n) {
   state.completed.add(n);
   const nav = document.getElementById('nav-'+n);
   nav.classList.add('nav-done');
 
-  // update progress overview
   const prog = document.getElementById('prog-'+n);
   if (prog) prog.classList.add('done');
 
-  // save to local storage
   const key = 'mindtrain_draft_' + state.todayKey;
   const draft = JSON.parse(localStorage.getItem(key) || '{}');
   draft['module'+n] = gatherModuleData(n);
   localStorage.setItem(key, JSON.stringify(draft));
+
+  // 同步到 Supabase
+  const uid = getUserId();
+  dbSave('training_records', {
+    user_id: uid,
+    date: state.todayKey,
+    module_id: n,
+    data: gatherModuleData(n)
+  });
 
   showToast('✓ 已保存');
   switchModule(n < 5 ? n+1 : 5);
@@ -1051,14 +1178,14 @@ function gatherModuleData(n) {
 }
 
 // ── SAVE DAY ──
-function saveDay() {
+// ── SAVE DAY ──
+async function saveDay() {
   const thought = document.getElementById('f5-thought').value;
   const draft = JSON.parse(localStorage.getItem('mindtrain_draft_' + state.todayKey) || '{}');
   draft.thought = thought;
   draft.date = state.todayKey;
   draft.completed = [...state.completed];
 
-  // Save to history
   const history = JSON.parse(localStorage.getItem('mindtrain_history') || '[]');
   const existing = history.findIndex(h => h.date === state.todayKey);
   if (existing >= 0) history[existing] = draft;
@@ -1066,14 +1193,23 @@ function saveDay() {
   localStorage.setItem('mindtrain_history', JSON.stringify(history));
   localStorage.removeItem('mindtrain_draft_' + state.todayKey);
 
+  // 同步到 Supabase
+  const uid = getUserId();
+  dbSave('daily_summaries', {
+    user_id: uid,
+    date: state.todayKey,
+    thought: thought,
+    completed: [...state.completed]
+  });
+
   updateStreak();
   showToast('🎉 今日训练完成！');
 }
 
 // ── LOAD TODAY ──
-function loadTodayProgress() {
+async function loadTodayProgress() {
+  // 先从本地加载
   const draft = JSON.parse(localStorage.getItem('mindtrain_draft_' + state.todayKey) || '{}');
-  // restore completed modules
   for (let n = 1; n <= 4; n++) {
     if (draft['module'+n]) {
       state.completed.add(n);
@@ -1081,6 +1217,32 @@ function loadTodayProgress() {
       const prog = document.getElementById('prog-'+n);
       if (prog) prog.classList.add('done');
     }
+  }
+
+  // 同时从 Supabase 加载历史记录
+  const uid = getUserId();
+  const records = await dbLoad('training_records', uid);
+  const summaries = await dbLoad('daily_summaries', uid);
+
+  if (records.length || summaries.length) {
+    // 合并云端数据到本地历史
+    const history = JSON.parse(localStorage.getItem('mindtrain_history') || '[]');
+    const allDates = [...new Set([...records.map(r=>r.date), ...summaries.map(s=>s.date)])];
+
+    allDates.forEach(date => {
+      let entry = history.find(h => h.date === date) || { date, completed: [] };
+      records.filter(r => r.date === date).forEach(r => {
+        entry['module'+r.module_id] = r.data;
+        if (!entry.completed.includes(r.module_id)) entry.completed.push(r.module_id);
+      });
+      const sum = summaries.find(s => s.date === date);
+      if (sum) { entry.thought = sum.thought; entry.completed = sum.completed || entry.completed; }
+      if (!history.find(h => h.date === date)) history.unshift(entry);
+    });
+
+    history.sort((a,b) => b.date.localeCompare(a.date));
+    localStorage.setItem('mindtrain_history', JSON.stringify(history));
+    updateStreak();
   }
 }
 
