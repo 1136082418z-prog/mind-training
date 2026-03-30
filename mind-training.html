@@ -618,6 +618,61 @@
   .history-field-label { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--ink-light); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.25rem; }
   .history-field-value { font-size:0.875rem; color:var(--ink); line-height:1.7; white-space:pre-wrap; }
 
+  /* ── LOGIN ── */
+  .login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+  }
+  .login-box {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3rem;
+    width: 100%;
+    max-width: 420px;
+  }
+  .login-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+  }
+  .login-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-light);
+    margin-bottom: 2rem;
+  }
+  .login-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .login-tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0.6rem 1.25rem;
+    border: none;
+    background: transparent;
+    color: var(--ink-light);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+  }
+  .login-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .login-field { margin-bottom: 1.25rem; }
+  .login-field label { display: block; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--ink-light); margin-bottom: 0.5rem; }
+  .login-field input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 3px; font-family: 'Noto Serif SC', serif; font-size: 0.9rem; background: var(--bg); color: var(--ink); outline: none; transition: border-color 0.2s; }
+  .login-field input:focus { border-color: var(--accent); }
+  .btn-login { width: 100%; padding: 0.9rem; background: var(--accent); color: white; border: none; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; }
+  .btn-login:hover { background: #d4703a; }
+  .login-error { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: #c0392b; margin-top: 1rem; display: none; }
+
   /* ── TOAST ── */
   .toast {
     position: fixed;
@@ -649,12 +704,38 @@
 </head>
 <body>
 
+<!-- 登录页面 -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-title">每日思维训练</div>
+    <div class="login-sub">登录后开始训练，数据多端同步</div>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('login')">登录</button>
+      <button class="login-tab" onclick="switchLoginTab('register')">注册</button>
+    </div>
+    <div class="login-field">
+      <label>邮箱</label>
+      <input type="email" id="loginEmail" placeholder="your@email.com">
+    </div>
+    <div class="login-field">
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="handleAuth()">登录</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- 主应用 -->
+<div id="appScreen" style="display:none">
+
 <header>
   <span class="app-title">每日思维训练</span>
   <span class="app-date" id="headerDate"></span>
   <div class="header-right">
     <button class="btn-sm" id="btnToday" onclick="showToday()">今日训练</button>
     <button class="btn-sm" id="btnHistory" onclick="showHistory()">历史记录</button>
+    <button class="btn-sm" onclick="handleLogout()" style="color:#c0392b">退出</button>
   </div>
 </header>
 
@@ -969,6 +1050,8 @@
   </main>
 </div>
 
+</div><!-- /appScreen -->
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -976,15 +1059,78 @@
 const SUPABASE_URL = 'https://kusrifubzepzwfmizpsl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1c3JpZnViemVwendmbWl6cHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzA3MjEsImV4cCI6MjA4OTgwNjcyMX0.4W_Zm_R1gzOvcn24vwCIzFoDdC_UijlSGeqfRKV0lXM';
 const OPENROUTER_KEY = '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';
+let currentUser = null;
 
-// 获取或生成用户ID
-function getUserId() {
-  let uid = localStorage.getItem('mindtrain_uid');
-  if (!uid) {
-    uid = 'user_' + Math.random().toString(36).substr(2, 12);
-    localStorage.setItem('mindtrain_uid', uid);
+// ── AUTH ──
+let loginMode = 'login';
+
+function switchLoginTab(mode) {
+  loginMode = mode;
+  document.querySelectorAll('.login-tab').forEach((b,i) => b.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register')));
+  document.getElementById('loginBtn').textContent = mode === 'login' ? '登录' : '注册';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  if (!email || !password) { showLoginError('请填写邮箱和密码'); return; }
+  if (password.length < 6) { showLoginError('密码至少6位'); return; }
+
+  btn.textContent = '请稍候...';
+  btn.disabled = true;
+
+  const endpoint = loginMode === 'login' ? 'token?grant_type=password' : 'signup';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      currentUser = { id: data.user.id, token: data.access_token, email: data.user.email };
+      localStorage.setItem('mindtrain_session', JSON.stringify(currentUser));
+      showApp();
+    } else if (loginMode === 'register' && data.user) {
+      showLoginError('注册成功！请查收验证邮件后登录。');
+    } else {
+      showLoginError(data.error_description || data.msg || '登录失败，请检查邮箱密码');
+    }
+  } catch(e) {
+    showLoginError('网络错误，请重试');
   }
-  return uid;
+  btn.textContent = loginMode === 'login' ? '登录' : '注册';
+  btn.disabled = false;
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function handleLogout() {
+  currentUser = null;
+  localStorage.removeItem('mindtrain_session');
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  updateDate();
+  loadTodayProgress();
+  updateStreak();
+  switchTemplate(0);
+}
+
+function getUserId() {
+  return currentUser ? currentUser.id : localStorage.getItem('mindtrain_uid') || 'guest';
 }
 
 // ── SUPABASE API ──
@@ -1118,10 +1264,16 @@ const state = {
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
-  updateDate();
-  loadTodayProgress();
-  updateStreak();
-  switchTemplate(0);
+  // 检查是否已登录
+  const session = JSON.parse(localStorage.getItem('mindtrain_session') || 'null');
+  if (session && session.id) {
+    currentUser = session;
+    showApp();
+  }
+  // 回车键触发登录
+  document.getElementById('loginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAuth();
+  });
 });
 
 function updateDate() {
@@ -1311,6 +1463,8 @@ async function loadTodayProgress() {
       document.getElementById('nav-'+n).classList.add('nav-done');
       const prog = document.getElementById('prog-'+n);
       if (prog) prog.classList.add('done');
+      // 恢复文字摘要框
+      showModuleSummary(n, draft['module'+n]);
     }
   }
 
