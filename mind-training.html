@@ -1091,15 +1091,33 @@ async function handleAuth() {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
+
+    // 登录成功
     if (data.access_token) {
       currentUser = { id: data.user.id, token: data.access_token, email: data.user.email };
       localStorage.setItem('mindtrain_session', JSON.stringify(currentUser));
       showApp();
-    } else if (loginMode === 'register' && data.user) {
-      showLoginError('注册成功！请查收验证邮件后登录。');
-    } else {
-      showLoginError(data.error_description || data.msg || '登录失败，请检查邮箱密码');
+      return;
     }
+
+    // 注册成功（需要验证邮件）
+    if (loginMode === 'register' && (data.user || data.id)) {
+      showLoginError('注册成功！请查收验证邮件后再登录。');
+      return;
+    }
+
+    // 注册成功（不需要验证邮件，直接有session）
+    if (loginMode === 'register' && data.session?.access_token) {
+      currentUser = { id: data.user.id, token: data.session.access_token, email: data.user.email };
+      localStorage.setItem('mindtrain_session', JSON.stringify(currentUser));
+      showApp();
+      return;
+    }
+
+    // 错误情况
+    const errMsg = data.error_description || data.message || data.msg || JSON.stringify(data);
+    showLoginError(loginMode === 'register' ? '注册失败：' + errMsg : '登录失败：' + errMsg);
+
   } catch(e) {
     showLoginError('网络错误，请重试');
   }
